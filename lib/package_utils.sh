@@ -13,11 +13,85 @@
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 source "${SCRIPT_DIR}/logging.sh"
 
+# Global variable to cache the chosen package manager
+PKG_MANAGER=""
+
+# Determine the best available package manager (prefer nala)
+# Usage: initialize_pkg_manager
+initialize_pkg_manager() {
+    if [[ -n "$PKG_MANAGER" ]]; then
+        return 0
+    fi
+
+    if command -v nala &>/dev/null; then
+        PKG_MANAGER="nala"
+        log_info "Using nala as the package manager."
+    else
+        log_info "nala not found. Attempting to install nala..."
+        if sudo apt-get update -y &>/dev/null && sudo apt-get install -y nala &>/dev/null; then
+            PKG_MANAGER="nala"
+            log_info "nala installed successfully. Using nala as the package manager."
+        else
+            PKG_MANAGER="apt-get"
+            log_warning "Could not install nala. Falling back to apt-get."
+        fi
+    fi
+}
+
+# Generic wrapper for package installation
+# Usage: pkg_install <package1> <package2> ...
+pkg_install() {
+    initialize_pkg_manager
+    if [[ "$PKG_MANAGER" == "nala" ]]; then
+        sudo nala install -y "$@"
+    else
+        sudo apt-get install -y "$@"
+    fi
+}
+
+# Generic wrapper for system update
+# Usage: pkg_update
+pkg_update() {
+    initialize_pkg_manager
+    if [[ "$PKG_MANAGER" == "nala" ]]; then
+        sudo nala update
+    else
+        sudo apt-get update
+    fi
+}
+
+# Generic wrapper for system upgrade
+# Usage: pkg_upgrade <full|dist-upgrade|upgrade>
+pkg_upgrade() {
+    initialize_pkg_manager
+    local type="${1:-upgrade}"
+    if [[ "$PKG_MANAGER" == "nala" ]]; then
+        # nala upgrade handles full-upgrade equivalents generally
+        sudo nala upgrade -y
+    else
+        sudo apt-get "$type" -y
+    fi
+}
+
+# Generic wrapper for cleaning up packages
+# Usage: pkg_clean <autoremove|autoclean>
+pkg_clean() {
+    initialize_pkg_manager
+    local action="$1"
+    if [[ "$PKG_MANAGER" == "nala" ]]; then
+        # nala doesn't have direct autoremove in the same way as apt-get
+        # we fallback to apt for cleaning tasks to be safe
+        sudo apt-get "$action" -y
+    else
+        sudo apt-get "$action" -y
+    fi
+}
+
 ###############################################################################
 # Functions
 ###############################################################################
 
-# Check if a program is installed; install via apt if missing.
+# Check if a program is installed; install via pkg_install if missing.
 #
 # @param program The name of the program to check/install
 check_program_installed() {
@@ -25,7 +99,7 @@ check_program_installed() {
   if ! command -v "$program" &> /dev/null; then
     log_error "The $program program is not installed."
     log_info "Installing $program..."
-    sudo apt-get install -y "$program" || { log_error "Failed to install $program."; exit 1; }
+    pkg_install "$program" || { log_error "Failed to install $program."; exit 1; }
   else
     log_info "The $program program is already installed."
   fi
@@ -58,7 +132,7 @@ install_packages() {
   fi
 
   log_info "Installing ${#to_install[@]} packages: ${to_install[*]}"
-  if ! sudo apt-get install -y "${to_install[@]}"; then
+  if ! pkg_install "${to_install[@]}"; then
     log_error "Package installation failed"
     return 1
   fi

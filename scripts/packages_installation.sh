@@ -13,34 +13,9 @@
 SCRIPT_DIR="$(dirname "$0")"
 source "${SCRIPT_DIR}/../lib/logging.sh"
 source "${SCRIPT_DIR}/../lib/package_utils.sh"
+source "${SCRIPT_DIR}/../config.env"
 
-# Core packages available in the standard Ubuntu repos
-PROGRAMS_TO_INSTALL_APT=(
-  p7zip-full
-  unrar
-  bzip2
-  unzip
-  tar
-  make
-  gcc
-  ntfs-3g
-  btop
-  tmux
-  vim
-  gufw
-  git
-  curl
-  wget
-  vlc
-  gimp
-  fuse3
-  deja-dup
-  gparted
-  libxcrypt-compat
-  libfreeaptx0
-  libldac2
-  libfdk-aac2
-)
+# Core packages available in the standard Ubuntu repos are now managed in config.env
 
 ###############################################################################
 # Functions
@@ -325,7 +300,7 @@ configure_shell_environment() {
   {
     echo -e "\n# fastfetch and poshtheme"
     echo "fastfetch"
-    echo 'eval "$(oh-my-posh init bash --config ~/.poshthemes/jandedobbeleer.omp.json)"'
+    echo "eval \"\$(oh-my-posh init bash --config ${POSH_THEME})\""
   } >> "$bashrc_path"
 
   log_success "Shell environment configured successfully"
@@ -342,7 +317,7 @@ main() {
     setup_flatpak_environment
     install_multimedia_codecs
     configure_firefox_codecs
-    install_packages "${PROGRAMS_TO_INSTALL_APT[@]}"
+    install_packages "${APT_PACKAGES[@]}"
     install_steam
     install_fastfetch
     install_microsoft_fonts

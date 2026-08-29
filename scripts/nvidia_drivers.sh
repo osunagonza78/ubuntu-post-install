@@ -15,6 +15,7 @@
 
 SCRIPT_DIR="$(dirname "$0")"
 source "${SCRIPT_DIR}/../lib/logging.sh"
+source "${SCRIPT_DIR}/../config.env"
 
 ###############################################################################
 # Functions
@@ -24,19 +25,7 @@ source "${SCRIPT_DIR}/../lib/logging.sh"
 hardware_acceleration_setup() {
     log_info "Setting up hardware acceleration for video playback..."
 
-    local accel_packages=(
-        libva-utils
-        vdpauinfo
-        ffmpeg
-        mpv
-        vlc
-        gstreamer1.0-plugins-bad
-        gstreamer1.0-plugins-ugly
-        gstreamer1.0-libav
-        gstreamer1.0-vaapi
-    )
-
-    if ! sudo apt-get install -y "${accel_packages[@]}"; then
+    if ! sudo apt-get install -y "${ACCEL_PACKAGES[@]}"; then
         log_error "Failed to install hardware acceleration packages"
         return 1
     fi
@@ -58,15 +47,33 @@ install_nvidia_drivers() {
     log_info "Detecting GPU and selecting recommended NVIDIA driver..."
     sudo ubuntu-drivers devices
 
-    if ! sudo ubuntu-drivers autoinstall; then
-        log_error "ubuntu-drivers autoinstall failed"
+    # Try autoinstall first
+    if sudo ubuntu-drivers autoinstall; then
+        log_success "NVIDIA drivers installed via ubuntu-drivers autoinstall"
+        return 0
+    fi
+
+    log_warning "ubuntu-drivers autoinstall failed or command not found. Attempting manual installation of recommended driver..."
+
+    # Fallback: Parse the recommended driver from 'ubuntu-drivers devices'
+    local recommended_driver
+    recommended_driver=$(ubuntu-drivers devices | grep 'recommended' | awk '{print $3}')
+
+    if [[ -n "$recommended_driver" ]]; then
+        log_info "Recommended driver identified: $recommended_driver"
+        if sudo apt-get install -y "$recommended_driver"; then
+            log_success "NVIDIA drivers installed successfully via apt: $recommended_driver"
+            return 0
+        else
+            log_error "Failed to install recommended driver: $recommended_driver"
+            return 1
+        fi
+    else
+        log_error "Could not identify a recommended NVIDIA driver."
         log_warning "You can install a specific driver version manually, e.g.:"
         log_warning "  sudo apt-get install -y nvidia-driver-550"
         return 1
     fi
-
-    log_success "NVIDIA drivers installed via ubuntu-drivers"
-    return 0
 }
 
 # Optionally install the NVIDIA CUDA toolkit for GPU compute workloads.

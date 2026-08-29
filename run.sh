@@ -28,19 +28,24 @@
 # Repository: https://github.com/gosuna78/ubuntu-post-install
 # =============================================================================
 
-# --- Color Palette ---
-BANNER='\033[1;35m'  # Bold Magenta
-PRIMARY='\033[1;34m' # Bold Blue
-SUCCESS='\033[1;32m' # Bold Green
-WARNING='\033[1;33m' # Bold Yellow
-DANGER='\033[1;31m'  # Bold Red
-INFO='\033[0;36m'    # Cyan
-NC='\033[0m'         # No Color
-BOLD='\033[1m'
-HIGHLIGHT='\033[7m'   # Reverse video for selected item
-
 # --- Configuration ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/"
+source "${SCRIPT_DIR}lib/logging.sh"
+
+# Ensure the user has sudo access before starting
+check_sudo_access() {
+    if ! sudo -v &>/dev/null; then
+        echo -e "\n${DANGER}✘ Error:${NC} This tool requires sudo privileges."
+        echo -e "${INFO}Please run it with sudo or ensure your user is in the sudoers group.${NC}"
+        echo -e "${INFO}Press Enter to exit...${NC}"
+        read
+        exit 1
+    fi
+}
+
+# Run the pre-check
+check_sudo_access
+
 
 # --- Auto-launch in tmux for split-pane view ---
 # We run on a dedicated tmux socket so our keybindings, styling, and
@@ -77,9 +82,12 @@ fi
 # Usage: show_header
 show_header() {
     clear
-    echo -e "${BANNER}##########################################################${NC}"
-    echo -e "${BANNER}#${NC}             ${BOLD}UBUNTU POST-INSTALL TOOL${NC}               ${BANNER}#${NC}"
-    echo -e "${BANNER}##########################################################${NC}"
+    local title="UBUNTU POST-INSTALL TOOL"
+    local width=58
+
+    echo -e "${ACCENT}┌──────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${ACCENT}│${NC}${BOLD}${ACCENT}$(center_text "$title" $width)${NC}${ACCENT}│${NC}"
+    echo -e "${ACCENT}└──────────────────────────────────────────────────────────┘${NC}"
     echo ""
 }
 
@@ -88,12 +96,12 @@ show_header() {
 show_running_state() {
     local title="$1"
     show_header
-    echo -e "  ${PRIMARY}▶${NC} ${BOLD}Running:${NC} ${title}"
+    echo -e "  ${ACCENT}❯${NC} ${BOLD}Executing:${NC} ${PRIMARY}${title}${NC}"
     echo ""
-    echo -e "  ${INFO}Output is streaming in the right pane.${NC}"
-    echo -e "  ${INFO}Press Enter there to return to the menu.${NC}"
+    echo -e "  ${DIM}Output is streaming in the right pane.${NC}"
+    echo -e "  ${DIM}Press Enter there to return to the menu.${NC}"
     echo ""
-    echo -e "${PRIMARY}──────────────────────────────────────────────────────────${NC}"
+    echo -e "${DIM}──────────────────────────────────────────────────────────${NC}"
     echo -e "${INFO}Alt+←/→ switch panes  •  Click a pane to focus it${NC}"
 }
 
@@ -126,9 +134,10 @@ run_script() {
     else
         # Fallback when tmux is unavailable: run inline.
         clear
-        echo -e "${BANNER}##########################################################${NC}"
-        echo -e "${BANNER}#${NC}  ${BOLD}${window_title}${NC}"
-        echo -e "${BANNER}##########################################################${NC}"
+        local width=58
+        echo -e "${ACCENT}┌──────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${ACCENT}│${NC}${BOLD}${ACCENT}$(center_text "$window_title" $width)${NC}${ACCENT}│${NC}"
+        echo -e "${ACCENT}└──────────────────────────────────────────────────────────┘${NC}"
         echo ""
         bash "$full_path"
         local exit_code=$?
@@ -165,20 +174,20 @@ show_menu() {
         local desc="${item#*|}"
 
         if [[ $i -eq $selected_index ]]; then
-            echo -e "${HIGHLIGHT}${PRIMARY}  ►${NC}${HIGHLIGHT} ${BOLD}${text}${NC}"
+            echo -e "${ACCENT}  ❯ ${BOLD}${text}${NC}"
             if [[ -n "$desc" ]]; then
-                echo -e "${HIGHLIGHT}     ${INFO}${desc}${NC}"
+                echo -e "    ${DIM}${desc}${NC}"
             fi
         else
-            echo -e "${PRIMARY}  ${i})${NC} ${BOLD}${text}${NC}"
+            echo -e "${DIM}    ${i})${NC} ${text}"
             if [[ -n "$desc" ]]; then
-                echo -e "     ${INFO}${desc}${NC}"
+                echo -e "    ${DIM}${desc}${NC}"
             fi
         fi
         echo ""
     done
 
-    echo -e "${PRIMARY}──────────────────────────────────────────────────────────${NC}"
+    echo -e "${DIM}──────────────────────────────────────────────────────────${NC}"
     echo -e "${INFO}↑↓ navigate  •  Enter select  •  Alt+←/→ switch panes${NC}"
 }
 

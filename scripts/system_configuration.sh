@@ -54,4 +54,11 @@ perform_updates
 log_info "Sleeping 5 seconds before system restart..."
 sleep 5
 
-reboot
+read -p "System configuration complete. A reboot is required. Reboot now? [y/N] " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    log_info "Rebooting system..."
+    reboot
+else
+    log_info "Reboot deferred. Please remember to reboot your system manually to apply all changes."
+fi

@@ -12,6 +12,7 @@
 
 SCRIPT_DIR="$(dirname "$0")"
 source "${SCRIPT_DIR}/../lib/logging.sh"
+source "${SCRIPT_DIR}/../config.env"
 
 ###############################################################################
 # Functions
@@ -22,17 +23,7 @@ source "${SCRIPT_DIR}/../lib/logging.sh"
 setup_virtualization_stack() {
   log_info "Installing KVM/QEMU virtualization packages..."
 
-  local virt_packages=(
-    qemu-kvm
-    libvirt-daemon-system
-    libvirt-clients
-    bridge-utils
-    virt-manager
-    virtinst
-    cpu-checker
-  )
-
-  if ! sudo apt-get install -y "${virt_packages[@]}"; then
+  if ! sudo apt-get install -y "${VIRT_PACKAGES[@]}"; then
     log_error "Failed to install virtualization packages"
     return 1
   fi

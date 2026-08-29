@@ -13,25 +13,29 @@
 
 set -u
 
-BANNER='\033[1;35m'
-PRIMARY='\033[1;34m'
-SUCCESS='\033[1;32m'
-WARNING='\033[1;33m'
-INFO='\033[0;36m'
+# --- Color Palette ---
+ACCENT='\033[38;5;75m'   # Soft Blue/Cyan
+PRIMARY='\033[38;5;111m' # Light Blue
+SUCCESS='\033[38;5;82m'  # Soft Green
+WARNING='\033[38;5;220m' # Soft Yellow
+INFO='\033[38;5;153m'    # Pale Cyan
+DIM='\033[38;5;242m'     # Gray
 BOLD='\033[1m'
 NC='\033[0m'
 
 show_idle() {
     clear
+    local title="Ubuntu Post-Install — Output"
+    local width=58
+
     echo
-    echo -e "  ${BANNER}╭──────────────────────────────────────────────────────╮${NC}"
-    echo -e "  ${BANNER}│${NC}                                                      ${BANNER}│${NC}"
-    echo -e "  ${BANNER}│${NC}    ${BOLD}Ubuntu Post-Install — Output${NC}                      ${BANNER}│${NC}"
-    echo -e "  ${BANNER}│${NC}                                                      ${BANNER}│${NC}"
-    echo -e "  ${BANNER}│${NC}    ${INFO}Pick an option from the menu on the left.${NC}        ${BANNER}│${NC}"
-    echo -e "  ${BANNER}│${NC}    ${INFO}Its output will stream here.${NC}                      ${BANNER}│${NC}"
-    echo -e "  ${BANNER}│${NC}                                                      ${BANNER}│${NC}"
-    echo -e "  ${BANNER}╰──────────────────────────────────────────────────────╯${NC}"
+    echo -e "  ${ACCENT}┌──────────────────────────────────────────────────────┐${NC}"
+    echo -e "  ${ACCENT}│${NC}$(center_text "$title" $width)${ACCENT}│${NC}"
+    echo -e "  ${ACCENT}│${NC}"
+    echo -e "  ${ACCENT}│${NC}    ${DIM}Pick an option from the menu on the left.${NC}        ${ACCENT}│${NC}"
+    echo -e "  ${ACCENT}│${NC}    ${DIM}Its output will stream here.${NC}                      ${ACCENT}│${NC}"
+    echo -e "  ${ACCENT}│${NC}"
+    echo -e "  ${ACCENT}└──────────────────────────────────────────────────────┘${NC}"
     echo
     trap 'exit 0' TERM INT
     while :; do sleep 3600; done
@@ -41,9 +45,10 @@ run_target() {
     local target="$1" title="$2" signal="$3"
 
     clear
-    echo -e "${BANNER}##########################################################${NC}"
-    echo -e "${BANNER}#${NC}  ${BOLD}${title}${NC}"
-    echo -e "${BANNER}##########################################################${NC}"
+    local width=58
+    echo -e "${ACCENT}┌──────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${ACCENT}│${NC}${BOLD}${ACCENT}$(center_text "$title" $width)${NC}${ACCENT}│${NC}"
+    echo -e "${ACCENT}└──────────────────────────────────────────────────────────┘${NC}"
     echo
 
     bash "$target"

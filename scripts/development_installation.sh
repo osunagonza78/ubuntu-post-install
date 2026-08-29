@@ -12,20 +12,9 @@
 
 SCRIPT_DIR="$(dirname "$0")"
 source "${SCRIPT_DIR}/../lib/logging.sh"
+source "${SCRIPT_DIR}/../config.env"
 
 readonly DOWNLOAD_DIR=~/Downloads
-readonly JETBRAINS_DIR="/opt/jetbrains"
-readonly VSCODE_DIR="/opt/vscode"
-
-# URLs for downloading software — keep these updated
-readonly IDEA_URL=https://download.jetbrains.com/idea/ideaIU-2025.3.3.tar.gz
-readonly PYCHARM_URL=https://download.jetbrains.com/python/pycharm-2025.3.3.tar.gz
-readonly VSCODE_URL="https://code.visualstudio.com/sha/download?build=stable&os=linux-x64"
-
-readonly OPENJDK_URL=https://download.java.net/openjdk/jdk21/ri/openjdk-21+35_linux-x64_bin.tar.gz
-readonly GRADLE_URL=https://services.gradle.org/distributions/gradle-8.14.4-bin.zip
-
-readonly GRADLE_DIR="/opt/gradle"
 readonly bashrc_path="$HOME/.bashrc"
 
 # Download and extract IntelliJ IDEA Ultimate and PyCharm Professional to /opt/jetbrains.
@@ -64,33 +53,37 @@ install_jetbrains_ide() {
   log_success "JetBrains IDEs installed successfully"
 }
 
-# Download and extract VS Code to /opt/vscode.
+# Install Visual Studio Code via the official APT repository.
 install_vscode_ide() {
-  log_info "Installing Visual Studio Code..."
+  log_info "Installing Visual Studio Code via APT..."
 
-  if ! wget --content-disposition -P "$DOWNLOAD_DIR" "$VSCODE_URL"; then
-    log_error "Failed to download VS Code"
+  # Ensure prerequisites are installed
+  if ! sudo apt-get install -y wget gpg apt-transport-https; then
+    log_error "Failed to install VS Code prerequisites"
     return 1
   fi
 
-  local downloaded_file
-  downloaded_file=$(find "$DOWNLOAD_DIR" -name "code*.tar.gz" -type f -printf "%f\n" | head -1)
-  if [ -z "$downloaded_file" ]; then
-    log_error "Could not find downloaded VS Code file"
+  # Add the Microsoft GPG key
+  log_info "Adding Microsoft GPG key..."
+  sudo mkdir -pm755 /etc/apt/keyrings
+  if ! wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /etc/apt/keyrings/packages.microsoft.gpg > /dev/null; then
+    log_error "Failed to add Microsoft GPG key"
     return 1
   fi
 
-  log_info "Downloaded file: $downloaded_file"
-  sudo mkdir -p "$VSCODE_DIR"
+  # Add the VS Code repository
+  log_info "Adding Visual Studio Code repository..."
+  echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | \
+    sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
 
-  if ! sudo tar -xzf "$DOWNLOAD_DIR/$downloaded_file" -C "$VSCODE_DIR"; then
-    log_error "Failed to extract VS Code"
+  # Update and install
+  sudo apt-get update
+  if ! sudo apt-get install -y code; then
+    log_error "Failed to install Visual Studio Code"
     return 1
   fi
 
-  find "$DOWNLOAD_DIR" -name "code*.tar.gz" -type f -exec rm -f {} +
-
-  log_success "VS Code installed successfully"
+  log_success "Visual Studio Code installed successfully via APT"
 }
 
 # Install Docker CE from the official Docker Ubuntu repository.
@@ -147,31 +140,31 @@ $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
 
 # Download and install Oracle OpenJDK 21 to /opt/java.
 install_openjdk() {
-  log_info "Installing OpenJDK 21..."
+  log_info "Installing OpenJDK ${JAVA_VERSION}..."
 
   if ! wget -P "$DOWNLOAD_DIR" "$OPENJDK_URL"; then
     log_error "Failed to download OpenJDK"
     return 1
   fi
 
-  sudo mkdir -p /opt/java
+  sudo mkdir -p "$JAVA_DIR"
 
-  if ! sudo tar -xzf "$DOWNLOAD_DIR"/openjdk-21*.tar.gz -C /opt/java; then
+  if ! sudo tar -xzf "$DOWNLOAD_DIR"/openjdk-*.tar.gz -C "$JAVA_DIR"; then
     log_error "Failed to extract OpenJDK"
     return 1
   fi
 
-  rm -f "$DOWNLOAD_DIR"/openjdk-21*.tar.gz
+  rm -f "$DOWNLOAD_DIR"/openjdk-*.tar.gz
 
-  echo "JAVA_HOME=/opt/java/jdk-21" | sudo tee -a /etc/environment > /dev/null
+  echo "JAVA_HOME=${JAVA_DIR}/${JAVA_VERSION}" | sudo tee -a /etc/environment > /dev/null
   echo 'export PATH=$JAVA_HOME/bin:$PATH' | sudo tee /etc/profile.d/java.sh > /dev/null
 
-  log_success "OpenJDK 21 installed successfully"
+  log_success "OpenJDK ${JAVA_VERSION} installed successfully"
 }
 
 # Download and install Gradle 8.14.4 to /opt/gradle.
 install_gradle() {
-  log_info "Installing Gradle..."
+  log_info "Installing Gradle ${GRADLE_VERSION}..."
 
   if ! wget -P "$DOWNLOAD_DIR" "$GRADLE_URL"; then
     log_error "Failed to download Gradle"
@@ -184,24 +177,24 @@ install_gradle() {
 
   sudo mkdir -p "$GRADLE_DIR"
 
-  if ! sudo unzip -q "$DOWNLOAD_DIR"/gradle-8*.zip -d "$GRADLE_DIR"; then
+  if ! sudo unzip -q "$DOWNLOAD_DIR"/gradle-*.zip -d "$GRADLE_DIR"; then
     log_error "Failed to extract Gradle"
     return 1
   fi
 
-  rm -f "$DOWNLOAD_DIR"/gradle-8*.zip
+  rm -f "$DOWNLOAD_DIR"/gradle-*.zip
 
-  echo "GRADLE_HOME=/opt/gradle/gradle-8.14.4" | sudo tee -a /etc/environment > /dev/null
+  echo "GRADLE_HOME=${GRADLE_DIR}/${GRADLE_VERSION}" | sudo tee -a /etc/environment > /dev/null
   echo 'export PATH=$GRADLE_HOME/bin:$PATH' | sudo tee /etc/profile.d/gradle.sh > /dev/null
 
-  log_success "Gradle installed successfully"
+  log_success "Gradle ${GRADLE_VERSION} installed successfully"
 }
 
 # Append Java and Gradle PATH entries to ~/.bashrc.
 configure_shell_environment() {
   local config_block="\n# Java and Gradle\n"
-  local java_home="export JAVA_HOME=/opt/java/jdk-21"
-  local gradle_home="export GRADLE_HOME=/opt/gradle/gradle-8.14.4"
+  local java_home="export JAVA_HOME=${JAVA_DIR}/${JAVA_VERSION}"
+  local gradle_home="export GRADLE_HOME=${GRADLE_DIR}/${GRADLE_VERSION}"
   local path_config='export PATH=$PATH:$JAVA_HOME/bin:$GRADLE_HOME/bin'
 
   cp "$bashrc_path" "${bashrc_path}.backup.$(date +%Y%m%d_%H%M%S)" || \
